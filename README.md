@@ -58,7 +58,7 @@ Run the script with desired options:
 ### 1. Search for advisories containing "Fortinet":
 
 ```bash
-./github_api_script.sh --query=fortinet --per_page=50
+./github_api_script.sh  --severity=critical --query=fortinet --published=2025-01-01..2025-12-31 --per_page=100 
 ```
 
 ### 2. Filter by GHSA ID:
