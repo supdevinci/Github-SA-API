@@ -1,111 +1,94 @@
 # GitHub Security Advisories API Script
 
-This Bash script interacts with the GitHub Security Advisories API, allowing you to fetch and filter security advisory data based on various criteria.
+This script interacts with the GitHub Security Advisories API, allowing you to retrieve and filter security advisories based on various criteria.
 
 ## Prerequisites
 
-- A valid GitHub token (to be set in the script or added dynamically using `--add-token`).
-- `jq` installed for JSON formatting:
+- **GitHub Token**: A valid GitHub token is required for authentication. Replace `<YOUR-TOKEN>` in the script with your token.
+- **jq**: Ensure `jq` is installed for JSON processing. Install it using:
   ```bash
-  sudo apt-get install jq  # On Debian/Ubuntu
-  brew install jq          # On macOS
+  sudo apt-get install jq   # For Debian/Ubuntu
+  brew install jq           # For macOS
   ```
+
+## Features
+
+- Filter advisories by specific parameters such as CVE ID, ecosystem, severity, etc.
+- Search advisories for specific keywords.
+- Paginate results and customize sorting.
+- Update the GitHub token dynamically.
 
 ## Usage
 
-Run the script with specific options to filter the advisories.
-
 ### Basic Command
+
+Run the script with desired options:
 ```bash
 ./github_api_script.sh [OPTIONS]
 ```
 
 ### Available Options
 
-| Option               | Description                                                                 | Example                                  |
-|----------------------|-----------------------------------------------------------------------------|------------------------------------------|
-| `--ghsa_id`          | Filter by a specific GHSA ID.                                              | `--ghsa_id=GHSA-abc1-xyz2-1234`          |
-| `--type`             | Filter advisories by type (reviewed, malware, unreviewed).                 | `--type=reviewed`                        |
-| `--cve_id`           | Filter by CVE ID.                                                         | `--cve_id=CVE-2023-12345`                |
-| `--ecosystem`        | Filter by ecosystem (npm, pip, etc.).                                      | `--ecosystem=npm`                        |
-| `--severity`         | Filter by severity (low, medium, high, critical).                         | `--severity=critical`                    |
-| `--cwes`             | Filter by Common Weakness Enumerations (CWEs).                            | `--cwes=79,284`                          |
-| `--is_withdrawn`     | Include only withdrawn advisories.                                         | `--is_withdrawn=true`                    |
-| `--affects`          | Filter by affected packages.                                              | `--affects=package1,package2@1.0.0`      |
-| `--published`        | Filter by publication date range.                                         | `--published=2023-01-01..2023-12-31`     |
-| `--updated`          | Filter by update date range.                                              | `--updated=2023-06-01..2023-12-31`       |
-| `--modified`         | Filter by modification date range.                                        | `--modified=2023-01-01..2023-12-31`      |
-| `--epss_percentage`  | Filter by EPSS percentage score range.                                    | `--epss_percentage=0.5..1.0`             |
-| `--epss_percentile`  | Filter by EPSS percentile score range.                                    | `--epss_percentile=90..100`              |
-| `--before`           | Pagination before a specific cursor.                                      | `--before=cursor12345`                   |
-| `--after`            | Pagination after a specific cursor.                                       | `--after=cursor12345`                    |
-| `--direction`        | Sort direction (asc or desc). Default: desc.                              | `--direction=asc`                        |
-| `--per_page`         | Number of results per page (max: 100). Default: 30.                       | `--per_page=50`                          |
-| `--sort`             | Property to sort results by (published, updated, etc.).                  | `--sort=updated`                         |
-| `--add-token`        | Add or update the GitHub token in the script.                             | `--add-token=your_github_token`          |
+| Option                  | Description                                                         | Example                                 |
+|-------------------------|---------------------------------------------------------------------|-----------------------------------------|
+| `--ghsa_id=<GHSA-ID>`   | Filter advisories by GHSA ID                                        | `--ghsa_id=GHSA-xyz1-1234`              |
+| `--type=<type>`         | Filter by type (reviewed, malware, unreviewed)                     | `--type=reviewed`                       |
+| `--cve_id=<CVE-ID>`     | Filter advisories by CVE ID                                         | `--cve_id=CVE-2023-12345`               |
+| `--ecosystem=<ecosystem>`| Filter advisories by ecosystem (npm, pip, etc.)                   | `--ecosystem=npm`                       |
+| `--severity=<severity>` | Filter advisories by severity (low, medium, high, critical)        | `--severity=critical`                   |
+| `--cwes=<cwe-list>`     | Filter by CWEs (example: 79,284)                                    | `--cwes=79,284`                         |
+| `--query=<keyword>`     | Search advisories containing a specific keyword                    | `--query=fortinet`                      |
+| `--per_page=<integer>`  | Number of results per page (max 100)                               | `--per_page=50`                         |
+| `--sort=<property>`     | Sort results by property (published, updated, etc.)                | `--sort=updated`                        |
+| `--add-token=<TOKEN>`   | Update or set a new GitHub token                                   | `--add-token=your_new_token`            |
 
-### Examples
+## Examples
 
-#### Example 1: Fetch advisories for a specific CVE ID
+### 1. Search for advisories containing "Fortinet":
+```bash
+./github_api_script.sh --severity=critical --query=fortinet --published=2025-01-01..2025-12-31 --per_page=100
+```
+
+### 2. Filter by CVE ID:
 ```bash
 ./github_api_script.sh --cve_id=CVE-2023-12345
 ```
 
-#### Example 2: Fetch advisories for ecosystem `npm` with critical severity
+### 3. Filter by ecosystem (e.g., npm):
 ```bash
-./github_api_script.sh --ecosystem=npm --severity=critical
+./github_api_script.sh --ecosystem=npm
 ```
 
-#### Example 3: Fetch advisories published in 2023
+### 4. Retrieve critical advisories:
 ```bash
-./github_api_script.sh --published=2023-01-01..2023-12-31
+./github_api_script.sh --severity=critical
 ```
 
-#### Example 4: Update the GitHub token
+### 5. Paginate results with 50 advisories per page:
 ```bash
-./github_api_script.sh --add-token=your_new_token
+./github_api_script.sh --per_page=50
 ```
 
-#### Example 5: Fetch advisories sorted by update date in ascending order
+### 6. Sort advisories by the latest updates:
 ```bash
-./github_api_script.sh --sort=updated --direction=asc
+./github_api_script.sh --sort=updated
 ```
 
-#### Example 6: Fetch advisories by GHSA ID
+### 7. Update GitHub token dynamically:
 ```bash
-./github_api_script.sh --ghsa_id=GHSA-xyz1-abc2-7890
-```
-
-#### Example 7: Fetch advisories affecting specific packages
-```bash
-./github_api_script.sh --affects=package1,package2@1.0.0
-```
-
-#### Example 8: Fetch advisories with specific CWEs
-```bash
-./github_api_script.sh --cwes=79,284
-```
-
-#### Example 9: Fetch advisories updated in a specific date range
-```bash
-./github_api_script.sh --updated=2023-01-01..2023-06-30
-```
-
-#### Example 10: Fetch advisories with EPSS percentile above 90
-```bash
-./github_api_script.sh --epss_percentile=90..100
+./github_api_script.sh --add-token=new_token_value
 ```
 
 ## Output
 
-The results are displayed in JSON format using `jq`. If `jq` is not installed, the raw JSON response is displayed.
+Results are displayed in JSON format, processed with `jq` for better readability. If `jq` is not installed, raw JSON will be shown.
 
-## Notes
+## Troubleshooting
 
-- Make sure your GitHub token has appropriate permissions to access the API.
-- The token can be added dynamically using the `--add-token` option.
+- **Invalid Token**: Ensure your GitHub token is valid and has sufficient permissions.
+- **Unexpected JSON Structure**: If filtering fails, review the API response structure.
 
 ## License
 
-This project is licensed under the MIT License. See the LICENSE file for more details.
+This project is licensed under the MIT License.
 
