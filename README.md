@@ -1,4 +1,4 @@
-# GitHub Advisories API Script
+# Security Advisories API Script
 
 This script interacts with the GitHub Security Advisories API to fetch and filter advisories based on various criteria. It supports pagination and can efficiently retrieve data while applying multiple filters. The script also supports updating the GitHub token directly.
 
