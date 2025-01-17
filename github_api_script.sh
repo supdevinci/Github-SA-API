@@ -1,85 +1,185 @@
-# GitHub Advisories API Script
+#!/bin/bash
 
-This script interacts with the GitHub Security Advisories API to fetch and filter advisories based on various criteria. It supports pagination and can efficiently retrieve data while applying multiple filters. The script also supports updating the GitHub token directly.
+# Script to interact with the GitHub Security Advisories API
+# Replace <YOUR-TOKEN> with your GitHub authentication token
 
-## Requirements
+GITHUB_TOKEN="xxx_XXXXXXXXXXXXXX"
+BASE_URL="https://api.github.com/advisories"
 
-- **bash** (Linux/MacOS)
-- **jq** (for JSON parsing)
-- A valid GitHub Personal Access Token (PAT) with appropriate permissions
+# Function to display usage instructions
+usage() {
+  echo "Usage: $0 [OPTIONS]"
+  echo "Options:"
+  echo "  --query=<keyword>               Filter advisories containing a specific keyword (e.g., Fortinet, VMware)"
+  echo "  --ghsa_id=<GHSA-ID>             Filter by GHSA-ID"
+  echo "  --type=<type>                   Filter by type (reviewed, malware, unreviewed)"
+  echo "  --cve_id=<CVE-ID>               Filter by CVE-ID"
+  echo "  --ecosystem=<ecosystem>         Filter by ecosystem (npm, pip, etc.)"
+  echo "  --severity=<severity>           Filter by severity (low, medium, high, critical)"
+  echo "  --cwes=<cwe-list>               Filter by CWEs (example: 79,284)"
+  echo "  --is_withdrawn=<true|false>     Include only withdrawn advisories"
+  echo "  --affects=<package-list>        Filter by affected packages"
+  echo "  --published=<date-range>        Filter by publication date (e.g., 2023-01-01..2023-12-31)"
+  echo "  --updated=<date-range>          Filter by update date"
+  echo "  --modified=<date-range>         Filter by modification date"
+  echo "  --epss_percentage=<value>       Filter by EPSS percentage"
+  echo "  --epss_percentile=<value>       Filter by EPSS percentile"
+  echo "  --direction=<asc|desc>          Sort order (default: desc)"
+  echo "  --sort=<property>               Property to sort by (published, updated, etc.)"
+  echo "  --last=<N>                      Show only the last N results (default: 10)"
+  echo "  --add-token=<GITHUB_TOKEN>      Add or update the GitHub token"
+}
 
-## Usage
+# Initialize parameters
+PARAMS="direction=desc&per_page=100"
+QUERY_KEYWORD=""
+LAST_COUNT=10 # Default to 10 results if --last is not provided
+RESULTS_COUNT=0 # Counter for the number of matching results
+COLLECTED_RESULTS="[]" # Initialize empty JSON array for results
 
-```bash
-./github_api_script.sh [OPTIONS]
-```
+# Parse arguments
+for arg in "$@"; do
+  case $arg in
+    --query=*)
+      QUERY_KEYWORD="${arg#*=}"
+      ;;
+    --ghsa_id=*)
+      ghsa_id="${arg#*=}"
+      PARAMS+="&ghsa_id=$ghsa_id"
+      ;;
+    --type=*)
+      type="${arg#*=}"
+      PARAMS+="&type=$type"
+      ;;
+    --cve_id=*)
+      cve_id="${arg#*=}"
+      PARAMS+="&cve_id=$cve_id"
+      ;;
+    --ecosystem=*)
+      ecosystem="${arg#*=}"
+      PARAMS+="&ecosystem=$ecosystem"
+      ;;
+    --severity=*)
+      severity="${arg#*=}"
+      PARAMS+="&severity=$severity"
+      ;;
+    --cwes=*)
+      cwes="${arg#*=}"
+      PARAMS+="&cwes=$cwes"
+      ;;
+    --is_withdrawn=*)
+      is_withdrawn="${arg#*=}"
+      PARAMS+="&is_withdrawn=$is_withdrawn"
+      ;;
+    --affects=*)
+      affects="${arg#*=}"
+      PARAMS+="&affects=$affects"
+      ;;
+    --published=*)
+      published="${arg#*=}"
+      PARAMS+="&published=$published"
+      ;;
+    --updated=*)
+      updated="${arg#*=}"
+      PARAMS+="&updated=$updated"
+      ;;
+    --modified=*)
+      modified="${arg#*=}"
+      PARAMS+="&modified=$modified"
+      ;;
+    --epss_percentage=*)
+      epss_percentage="${arg#*=}"
+      PARAMS+="&epss_percentage=$epss_percentage"
+      ;;
+    --epss_percentile=*)
+      epss_percentile="${arg#*=}"
+      PARAMS+="&epss_percentile=$epss_percentile"
+      ;;
+    --direction=*)
+      direction="${arg#*=}"
+      PARAMS="${PARAMS//direction=desc/}&direction=$direction"
+      ;;
+    --sort=*)
+      sort="${arg#*=}"
+      PARAMS+="&sort=$sort"
+      ;;
+    --last=*)
+      LAST_COUNT="${arg#*=}"
+      ;;
+    --add-token=*)
+      new_token="${arg#*=}"
+      escaped_token=$(printf '%s\n' "$new_token" | sed 's/[\/&]/\\&/g')
+      sed -i "s/^GITHUB_TOKEN=.*/GITHUB_TOKEN=\"$escaped_token\"/" "$0"
+      echo "GitHub token successfully updated."
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $arg"
+      usage
+      exit 1
+      ;;
+  esac
+done
 
-### Options
+# Function to fetch advisories
+fetch_advisories() {
+  local url="$1"
+  curl -i -s -L \
+    -H "Accept: application/vnd.github+json" \
+    -H "Authorization: Bearer $GITHUB_TOKEN" \
+    -H "X-GitHub-Api-Version: 2022-11-28" \
+    "$url"
+}
 
-| Option                       | Description                                                                                 | Example                                                                                   |
-|------------------------------|---------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------|
-| `--query=<keyword>`          | Filter advisories containing a specific keyword in the summary or description.             | `--query=fortinet`                                                                        |
-| `--ghsa_id=<GHSA-ID>`        | Filter advisories by their GHSA-ID.                                                        | `--ghsa_id=GHSA-wfv4-v3vj-4vq5`                                                          |
-| `--type=<type>`              | Filter advisories by type (`reviewed`, `malware`, `unreviewed`).                            | `--type=reviewed`                                                                         |
-| `--cve_id=<CVE-ID>`          | Filter advisories by their CVE-ID.                                                         | `--cve_id=CVE-2023-51475`                                                                |
-| `--ecosystem=<ecosystem>`    | Filter advisories by ecosystem (e.g., `npm`, `pip`).                                       | `--ecosystem=npm`                                                                        |
-| `--severity=<severity>`      | Filter advisories by severity (`low`, `medium`, `high`, `critical`).                       | `--severity=critical`                                                                     |
-| `--cwes=<cwe-list>`          | Filter advisories by CWE identifiers (e.g., `79,284`).                                     | `--cwes=79,89`                                                                           |
-| `--is_withdrawn=<true\|false>`| Include or exclude withdrawn advisories.                                                   | `--is_withdrawn=true`                                                                     |
-| `--affects=<package-list>`   | Filter advisories by affected packages.                                                    | `--affects=@angular/core`                                                                |
-| `--published=<date-range>`   | Filter advisories by their publication date (e.g., `YYYY-MM-DD..YYYY-MM-DD`).              | `--published=2023-01-01..2023-12-31`                                                     |
-| `--updated=<date-range>`     | Filter advisories by their update date.                                                    | `--updated=2023-01-01..2023-12-31`                                                       |
-| `--modified=<date-range>`    | Filter advisories by their modification date.                                               | `--modified=2023-01-01..2023-12-31`                                                      |
-| `--epss_percentage=<value>`  | Filter advisories by EPSS percentage.                                                      | `--epss_percentage=0.5`                                                                  |
-| `--epss_percentile=<value>`  | Filter advisories by EPSS percentile.                                                      | `--epss_percentile=90`                                                                   |
-| `--direction=<asc|desc>`     | Sort the results in ascending or descending order. Default is `desc`.                      | `--direction=asc`                                                                        |
-| `--sort=<property>`          | Sort results by a property (`published`, `updated`, etc.).                                 | `--sort=published`                                                                       |
-| `--last=<N>`                 | Show only the last N results. Default is 10.                                               | `--last=5`                                                                               |
-| `--add-token=<GITHUB_TOKEN>` | Update the GitHub Personal Access Token directly in the script.                            | `--add-token=ghp_XXXXXX`                                                                 |
+# Start URL
+URL="$BASE_URL?$PARAMS"
+NEXT_URL="$URL"
 
-### Example Commands
+# Fetch pages until the desired number of results is found
+while [ -n "$NEXT_URL" ] && [ "$RESULTS_COUNT" -lt "$LAST_COUNT" ]; do
+  response=$(fetch_advisories "$NEXT_URL")
 
-#### Add or Update the GitHub Personal Access Token
-```bash
-./github_api_script.sh --add-token=ghp_NEW_PERSONAL_ACCESS_TOKEN
-```
+  # Extract the headers and body
+  headers=$(echo "$response" | sed -n '/^HTTP\/2 200/,/^$/p')
+  body=$(echo "$response" | sed -n '/^\[/,$p')
 
-#### Retrieve Critical Fortinet Advisories Published in 2025
-```bash
-./github_api_script.sh --severity=critical --query=fortinet --published=2025-01-01..2025-12-31
-```
+  # Check if the response is valid JSON
+  if echo "$body" | jq -e . > /dev/null 2>&1; then
+    # Filter results by keyword if specified
+    if [ -n "$QUERY_KEYWORD" ]; then
+      matching_results=$(echo "$body" | jq --arg keyword "$QUERY_KEYWORD" '
+        .[] | select(
+          (.summary | test($keyword; "i")) or
+          (.description | test($keyword; "i"))
+        )'
+      )
+    else
+      matching_results=$(echo "$body")
+    fi
 
-#### Retrieve the Last 5 Advisories with CVE-ID `CVE-2023-51475`
-```bash
-./github_api_script.sh --cve_id=CVE-2023-51475 --last=5
-```
+    # Add matching results to the collected results
+    if [ -n "$matching_results" ]; then
+      COLLECTED_RESULTS=$(echo "$COLLECTED_RESULTS" "$matching_results" | jq -s 'flatten')
+      RESULTS_COUNT=$(echo "$COLLECTED_RESULTS" | jq 'length')
+    fi
 
-#### Retrieve Advisories for Ecosystem `npm` Updated in 2023
-```bash
-./github_api_script.sh --ecosystem=npm --updated=2023-01-01..2023-12-31
-```
+    # Stop if the desired number of results is reached
+    if [ "$RESULTS_COUNT" -ge "$LAST_COUNT" ]; then
+      break
+    fi
+  fi
 
-#### Retrieve Withdrawn Advisories
-```bash
-./github_api_script.sh --is_withdrawn=true
-```
+  # Check if there is a next page
+  if echo "$headers" | grep -q 'rel="next"'; then
+    NEXT_URL=$(echo "$headers" | grep -oP '(?<=<)[^>]+(?=>; rel="next")')
+  else
+    NEXT_URL=""
+  fi
+done
 
-#### Retrieve Advisories Sorted by Update Date in Ascending Order
-```bash
-./github_api_script.sh --sort=updated --direction=asc
-```
-
-## Notes
-
-- Ensure `jq` is installed on your system to parse JSON outputs.
-- Replace `<YOUR-TOKEN>` with your actual GitHub Personal Access Token for authorization.
-- The script uses pagination and stops as soon as the desired number of results is reached (if specified via `--last`).
-
-## Debugging
-
-If you encounter issues:
-- Use the `--last=10` option to limit the results and reduce the processing time.
-- Run with `bash -x` for verbose output to debug any issues.
-
-Feel free to modify or extend this script to suit your specific requirements.
-
+# Display the results
+if [ "$RESULTS_COUNT" -eq 0 ]; then
+  echo "No results found."
+else
+  echo "$COLLECTED_RESULTS" | jq -s ".[0:$LAST_COUNT]"
+fi
