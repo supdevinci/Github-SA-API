@@ -1,184 +1,85 @@
-# GitHub Security Advisories API Script
+# GitHub Advisories API Script
 
-This script interacts with the GitHub Security Advisories API, allowing you to retrieve and filter security advisories based on various criteria.
+This script interacts with the GitHub Security Advisories API to fetch and filter advisories based on various criteria. It supports pagination and can efficiently retrieve data while applying multiple filters. The script also supports updating the GitHub token directly.
 
-## Prerequisites
+## Requirements
 
-- **GitHub Token**: A valid GitHub token is required for authentication. Replace `<YOUR-TOKEN>` in the script with your token.
-- **jq**: Ensure `jq` is installed for JSON processing. Install it using:
-  ```bash
-  sudo apt-get install jq   # For Debian/Ubuntu
-  brew install jq           # For macOS
-  ```
-
-## Features
-
-- Filter advisories by specific parameters such as CVE ID, ecosystem, severity, etc.
-- Search advisories for specific keywords.
-- Paginate results and customize sorting.
-- Update the GitHub token dynamically.
+- **bash** (Linux/MacOS)
+- **jq** (for JSON parsing)
+- A valid GitHub Personal Access Token (PAT) with appropriate permissions
 
 ## Usage
-
-### Basic Command
-
-Run the script with desired options:
 
 ```bash
 ./github_api_script.sh [OPTIONS]
 ```
 
-### Available Options
+### Options
 
-| Option                      | Description                                                 | Example                              |                       |
-| --------------------------- | ----------------------------------------------------------- | ------------------------------------ | --------------------- |
-| `--ghsa_id=<GHSA-ID>`       | Filter advisories by GHSA ID                                | `--ghsa_id=GHSA-xyz1-1234`           |                       |
-| `--type=<type>`             | Filter by type (reviewed, malware, unreviewed)              | `--type=reviewed`                    |                       |
-| `--cve_id=<CVE-ID>`         | Filter advisories by CVE ID                                 | `--cve_id=CVE-2023-12345`            |                       |
-| `--ecosystem=<ecosystem>`   | Filter advisories by ecosystem (npm, pip, etc.)             | `--ecosystem=npm`                    |                       |
-| `--severity=<severity>`     | Filter advisories by severity (low, medium, high, critical) | `--severity=critical`                |                       |
-| `--cwes=<cwe-list>`         | Filter by CWEs (example: 79,284)                            | `--cwes=79,284`                      |                       |
-| \`--is\_withdrawn=\<true    | false>\`                                                    | Include only withdrawn advisories    | `--is_withdrawn=true` |
-| `--affects=<package-list>`  | Filter advisories by affected packages                      | `--affects=package1,package2@1.0.0`  |                       |
-| `--published=<date-range>`  | Filter advisories by publication date range                 | `--published=2023-01-01..2023-12-31` |                       |
-| `--updated=<date-range>`    | Filter advisories by update date range                      | `--updated=2023-06-01..2023-12-31`   |                       |
-| `--modified=<date-range>`   | Filter advisories by modification date range                | `--modified=2023-01-01..2023-12-31`  |                       |
-| `--epss_percentage=<value>` | Filter advisories by EPSS percentage                        | `--epss_percentage=0.5..1.0`         |                       |
-| `--epss_percentile=<value>` | Filter advisories by EPSS percentile                        | `--epss_percentile=90..100`          |                       |
-| `--before=<cursor>`         | Paginate advisories before a specific cursor                | `--before=cursor12345`               |                       |
-| `--after=<cursor>`          | Paginate advisories after a specific cursor                 | `--after=cursor12345`                |                       |
-| \`--direction=\<asc         | desc>\`                                                     | Sort order (default: desc)           | `--direction=asc`     |
-| `--per_page=<integer>`      | Number of results per page (max 100)                        | `--per_page=50`                      |                       |
-| `--sort=<property>`         | Sort results by property (published, updated, etc.)         | `--sort=updated`                     |                       |
-| `--add-token=<TOKEN>`       | Update or set a new GitHub token                            | `--add-token=your_new_token`         |                       |
-| `--query=<keyword>`         | Search advisories containing a specific keyword             | `--query=fortinet`                   |                       |
+| Option                       | Description                                                                                 | Example                                                                                   |
+|------------------------------|---------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------|
+| `--add-token=<GITHUB_TOKEN>` | Update the GitHub Personal Access Token directly in the script.                            | `--add-token=ghp_XXXXXX`                                                                 |
+| `--query=<keyword>`          | Filter advisories containing a specific keyword in the summary or description.             | `--query=fortinet`                                                                        |
+| `--ghsa_id=<GHSA-ID>`        | Filter advisories by their GHSA-ID.                                                        | `--ghsa_id=GHSA-wfv4-v3vj-4vq5`                                                          |
+| `--type=<type>`              | Filter advisories by type (`reviewed`, `malware`, `unreviewed`).                            | `--type=reviewed`                                                                         |
+| `--cve_id=<CVE-ID>`          | Filter advisories by their CVE-ID.                                                         | `--cve_id=CVE-2023-51475`                                                                |
+| `--ecosystem=<ecosystem>`    | Filter advisories by ecosystem (e.g., `npm`, `pip`).                                       | `--ecosystem=npm`                                                                        |
+| `--severity=<severity>`      | Filter advisories by severity (`low`, `medium`, `high`, `critical`).                       | `--severity=critical`                                                                     |
+| `--cwes=<cwe-list>`          | Filter advisories by CWE identifiers (e.g., `79,284`).                                     | `--cwes=79,89`                                                                           |
+| `--is_withdrawn=<true\|false>`| Include or exclude withdrawn advisories.                                                   | `--is_withdrawn=true`                                                                     |
+| `--affects=<package-list>`   | Filter advisories by affected packages.                                                    | `--affects=@angular/core`                                                                |
+| `--published=<date-range>`   | Filter advisories by their publication date (e.g., `YYYY-MM-DD..YYYY-MM-DD`).              | `--published=2023-01-01..2023-12-31`                                                     |
+| `--updated=<date-range>`     | Filter advisories by their update date.                                                    | `--updated=2023-01-01..2023-12-31`                                                       |
+| `--modified=<date-range>`    | Filter advisories by their modification date.                                               | `--modified=2023-01-01..2023-12-31`                                                      |
+| `--epss_percentage=<value>`  | Filter advisories by EPSS percentage.                                                      | `--epss_percentage=0.5`                                                                  |
+| `--epss_percentile=<value>`  | Filter advisories by EPSS percentile.                                                      | `--epss_percentile=90`                                                                   |
+| `--direction=<asc|desc>`     | Sort the results in ascending or descending order. Default is `desc`.                      | `--direction=asc`                                                                        |
+| `--sort=<property>`          | Sort results by a property (`published`, `updated`, etc.).                                 | `--sort=published`                                                                       |
+| `--last=<N>`                 | Show only the last N results. Default is 10.                                               | `--last=5`                                                                               |
 
-## Examples
+### Example Commands
 
-### 1. Search for advisories containing "Fortinet":
-
+#### Retrieve Critical Fortinet Advisories Published in 2025
 ```bash
-./github_api_script.sh  --severity=critical --query=fortinet --published=2025-01-01..2025-12-31 --per_page=100 
+./github_api_script.sh --severity=critical --query=fortinet --published=2025-01-01..2025-12-31
 ```
 
-### 2. Filter by GHSA ID:
-
+#### Retrieve the Last 5 Advisories with CVE-ID `CVE-2023-51475`
 ```bash
-./github_api_script.sh --ghsa_id=GHSA-xyz1-1234
+./github_api_script.sh --cve_id=CVE-2023-51475 --last=5
 ```
 
-### 3. Filter by CVE ID:
-
+#### Retrieve Advisories for Ecosystem `npm` Updated in 2023
 ```bash
-./github_api_script.sh --cve_id=CVE-2023-12345
+./github_api_script.sh --ecosystem=npm --updated=2023-01-01..2023-12-31
 ```
 
-### 4. Filter by ecosystem (e.g., npm):
-
-```bash
-./github_api_script.sh --ecosystem=npm
-```
-
-### 5. Retrieve critical advisories:
-
-```bash
-./github_api_script.sh --severity=critical
-```
-
-### 6. Filter advisories by CWEs:
-
-```bash
-./github_api_script.sh --cwes=79,284
-```
-
-### 7. Include only withdrawn advisories:
-
+#### Retrieve Withdrawn Advisories
 ```bash
 ./github_api_script.sh --is_withdrawn=true
 ```
 
-### 8. Filter advisories affecting specific packages:
-
+#### Retrieve Advisories Sorted by Update Date in Ascending Order
 ```bash
-./github_api_script.sh --affects=package1,package2@1.0.0
+./github_api_script.sh --sort=updated --direction=asc
 ```
 
-### 9. Filter advisories published in 2023:
-
+#### Add or Update the GitHub Personal Access Token
 ```bash
-./github_api_script.sh --published=2023-01-01..2023-12-31
+./github_api_script.sh --add-token=ghp_NEW_PERSONAL_ACCESS_TOKEN
 ```
 
-### 10. Filter advisories updated in the second half of 2023:
+## Notes
 
-```bash
-./github_api_script.sh --updated=2023-06-01..2023-12-31
-```
+- Ensure `jq` is installed on your system to parse JSON outputs.
+- Replace `<YOUR-TOKEN>` with your actual GitHub Personal Access Token for authorization.
+- The script uses pagination and stops as soon as the desired number of results is reached (if specified via `--last`).
 
-### 11. Filter advisories modified in 2023:
+## Debugging
 
-```bash
-./github_api_script.sh --modified=2023-01-01..2023-12-31
-```
+If you encounter issues:
+- Use the `--last=10` option to limit the results and reduce the processing time.
+- Run with `bash -x` for verbose output to debug any issues.
 
-### 12. Filter advisories with an EPSS percentage of 50-100%:
-
-```bash
-./github_api_script.sh --epss_percentage=0.5..1.0
-```
-
-### 13. Filter advisories in the top 10% EPSS percentile:
-
-```bash
-./github_api_script.sh --epss_percentile=90..100
-```
-
-### 14. Paginate results before a specific cursor:
-
-```bash
-./github_api_script.sh --before=cursor12345
-```
-
-### 15. Paginate results after a specific cursor:
-
-```bash
-./github_api_script.sh --after=cursor12345
-```
-
-### 16. Sort advisories by the latest updates:
-
-```bash
-./github_api_script.sh --sort=updated
-```
-
-### 17. Retrieve advisories sorted in ascending order:
-
-```bash
-./github_api_script.sh --direction=asc
-```
-
-### 18. Paginate results with 50 advisories per page:
-
-```bash
-./github_api_script.sh --per_page=50
-```
-
-### 19. Update GitHub token dynamically:
-
-```bash
-./github_api_script.sh --add-token=new_token_value
-```
-
-## Output
-
-Results are displayed in JSON format, processed with `jq` for better readability. If `jq` is not installed, raw JSON will be shown.
-
-## Troubleshooting
-
-- **Invalid Token**: Ensure your GitHub token is valid and has sufficient permissions.
-- **Unexpected JSON Structure**: If filtering fails, review the API response structure.
-
-## License
-
-This project is licensed under the MIT License.
+Feel free to modify or extend this script to suit your specific requirements.
 
